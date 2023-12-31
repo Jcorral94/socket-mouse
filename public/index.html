@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mice</title>
+    <style>
+      * {
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 100vw;
+        height: 100vh;
+      }
+      #canvas {
+        width: 100vw;
+        height: 100vh;
+        cursor: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script>
+      const socket = io("http://localhost:3000");
+      const canvas = document.querySelector("#canvas");
+      const ctx = canvas.getContext("2d");
+      let SOCKET_ID = null;
+      let USERS = null;
+      const POKEMON_IMG_PATH = "pokeball.png";
+      const POKEMON_IMG = new Image();
+      POKEMON_IMG.width = "10px";
+      POKEMON_IMG.height = "10px";
+      POKEMON_IMG.src = POKEMON_IMG_PATH;
+
+      POKEMON_IMG.onload = function () {
+        socket.on("client-connected", (args) => {
+          // update users
+          // when user connects this will run
+          SOCKET_ID = socket.id;
+          USERS = args;
+          console.log(USERS, SOCKET_ID);
+        });
+
+        socket.on("update-users", (args) => {
+          USERS = args;
+          handleMouse(USERS, false);
+          handleMouse(USERS, true);
+        });
+
+        initCanvas(canvas);
+        updateCanvas(ctx);
+
+        // setInterval(() => socket.emit("get-users"), 100);
+        window.addEventListener("resize", () => {
+          initCanvas(canvas);
+          updateCanvas(ctx);
+          handleMouse(USERS, true);
+        });
+
+        window.addEventListener("mousemove", sendMouseMoveUpdate);
+
+        function initCanvas(canvas) {
+          canvas.width = innerWidth;
+          canvas.height = innerHeight;
+        }
+        function updateCanvas(ctx) {
+          ctx.fillStyle = "black";
+          ctx.fillRect(0, 0, innerWidth, innerHeight);
+        }
+
+        function sendMouseMoveUpdate(event) {
+          try {
+            socket.emit("mouse-move", {
+              id: SOCKET_ID,
+              x: event.clientX,
+              y: event.clientY,
+            });
+          } catch (error) {
+            console.error("SendMouseMoveUpdate Error", error);
+          }
+        }
+
+        function handleMouse(users, presistent = false) {
+          const keys = Object.keys(users);
+          // console.log(keys);
+
+          for (let i = 0; i < keys.length; i++) {
+            const user = users[keys[i]];
+            if (user) {
+              drawUser(user);
+              drawText("Hello Friends! ❤️");
+              if (!presistent) updateCanvas(ctx);
+            }
+          }
+        }
+
+        function drawText(text) {
+          ctx.beginPath();
+          ctx.font = "40px san-serif";
+          ctx.fillStyle = "white";
+          ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+          ctx.closePath();
+        }
+
+        function drawUser(user) {
+          ctx.beginPath();
+          ctx.font = "12px san-serif";
+          if (SOCKET_ID == user.id) {
+            ctx.fillStyle = "#A552DF";
+          } else {
+            ctx.fillStyle = "white";
+          }
+          ctx.fillText(user.id, user.x + 20, user.y + 40, 400);
+          ctx.drawImage(POKEMON_IMG, user.x - 30, user.y - 20, 50, 50);
+          // ctx.arc(user.x, user.y, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.closePath();
+        }
+      };
+    </script>
+  </body>
+</html>
